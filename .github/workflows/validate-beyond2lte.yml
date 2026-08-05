@@ -45,8 +45,9 @@ jobs:
       - name: Generate the UN1CA build configuration
         shell: bash
         run: |
-          set -euo pipefail
+          set -eo pipefail
           source buildenv.sh beyond2lte
+          set -u
           test "$ROM_VERSION" = "4.0.0"
           test "$TARGET_CODENAME" = "beyond2lte"
           test "$TARGET_PLATFORM" = "exynos9820"
