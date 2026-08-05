@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:maxLines="999"
-    android:text="@string/artisanrom_about_description"
+    android:text="@string/creatorrom_about_description"
     android:paddingStart="16dp"
     android:paddingEnd="16dp"
     android:paddingTop="8dp"

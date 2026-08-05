@@ -171,7 +171,7 @@
     :cond_ctx_ok
     const-string v1, "string"
 
-    const-string v3, "artisanrom_no_github"
+    const-string v3, "creatorrom_no_github"
 
     invoke-static {v1, v3}, Lio/mesalabs/unica/utils/Utils;->getResourceId(Ljava/lang/String;Ljava/lang/String;)I
 
@@ -238,7 +238,7 @@
     :cond_ctx_ok3
     const-string v1, "string"
 
-    const-string v2, "artisanrom_no_browser"
+    const-string v2, "creatorrom_no_browser"
 
     invoke-static {v1, v2}, Lio/mesalabs/unica/utils/Utils;->getResourceId(Ljava/lang/String;Ljava/lang/String;)I
 

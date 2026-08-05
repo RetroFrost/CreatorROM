@@ -1,4 +1,14 @@
-# ArtisanROM changelog
+# CreatorROM changelog
+
+## 4.0.0 Genesis
+
+- Base the project on ArtisanROM 3.5.1 and its current UN1CA/One UI 8 build system.
+- Restore and migrate Exynos 9820 compatibility support for Galaxy S10+ (`beyond2lte`).
+- Restore guarded legacy-partition packaging for devices without dynamic partitions.
+- Integrate the Exynos 9820 kernel build and direct `boot`, `dtb`, and `dtbo` installation.
+- Rebrand user-facing build metadata and packaging as CreatorROM.
+
+## Upstream ArtisanROM history
 
 # 3.5.0
 - Switch to UN1CA build system (thx @xfwdrev).

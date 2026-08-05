@@ -24,12 +24,12 @@ GET_BUILD_VAR()
 
 IS_OFFICIAL_CERT_AVAILABLE()
 {
-    local PLATFORM_KEY_SHA1="1c7539462761b312c7db18908344ab45863cf6af"
-    local OTA_KEY_SHA1="04cad1d2dc784eacdb668c9da15e4ceae0c82c1b"
-
     local USES_OFFICIAL_CERT="false"
-    if [[ "$(sha1sum "$SRC_DIR/security/artisanrom_platform.pk8" 2> /dev/null | cut -d " " -f 1)" == "$PLATFORM_KEY_SHA1" ]] && \
-            [[ "$(sha1sum "$SRC_DIR/security/artisanrom_ota.pk8" 2> /dev/null | cut -d " " -f 1)" == "$OTA_KEY_SHA1" ]]; then
+    if [[ "${CREATORROM_OFFICIAL,,}" == "true" ]] && \
+            [ -s "$SRC_DIR/security/creatorrom_platform.pk8" ] && \
+            [ -s "$SRC_DIR/security/creatorrom_platform.x509.pem" ] && \
+            [ -s "$SRC_DIR/security/creatorrom_ota.pk8" ] && \
+            [ -s "$SRC_DIR/security/creatorrom_ota.x509.pem" ]; then
         USES_OFFICIAL_CERT="true"
     fi
 
@@ -152,6 +152,10 @@ fi
 #   TARGET_SUPER_PARTITION_SIZE
 #     Integer containing the size in bytes of the target device super partition size, which can be checked using the lpdump tool.
 #     Notice this must be bigger than TARGET_${TARGET_SUPER_GROUP_NAME}_SIZE.
+#
+#   TARGET_USE_DYNAMIC_PARTITIONS
+#     If set to false, partition images are written directly to their block devices instead of through super.
+#     Defaults to true.
 #
 #   [SOURCE/TARGET]_SUPER_GROUP_NAME
 #     String containing the super partition group name the device uses.
@@ -453,6 +457,7 @@ fi
     GET_BUILD_VAR "TARGET_LK3RD_PARTITION_SIZE" "none"
     GET_BUILD_VAR "TARGET_INIT_BOOT_PARTITION_SIZE" "none"
     GET_BUILD_VAR "TARGET_VENDOR_BOOT_PARTITION_SIZE" "none"
+    GET_BUILD_VAR "TARGET_USE_DYNAMIC_PARTITIONS" "true"
     GET_BUILD_VAR "TARGET_SUPER_PARTITION_SIZE"
     GET_BUILD_VAR "SOURCE_SUPER_GROUP_NAME"
     GET_BUILD_VAR "TARGET_SUPER_GROUP_NAME" "$SOURCE_SUPER_GROUP_NAME"

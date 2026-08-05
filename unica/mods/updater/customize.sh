@@ -1,8 +1,8 @@
 SKIPUNZIP=1
 
-SET_PROP "system" "ro.artisanrom.version" "$ROM_VERSION"
-SET_PROP "system" "ro.artisanrom.target" "$TARGET_CODENAME"
-SET_PROP "system" "ro.artisanrom.official" "$ROM_IS_OFFICIAL"
+SET_PROP "system" "ro.creatorrom.version" "$ROM_VERSION"
+SET_PROP "system" "ro.creatorrom.target" "$TARGET_CODENAME"
+SET_PROP "system" "ro.creatorrom.official" "$ROM_IS_OFFICIAL"
 
 if ! $ROM_IS_OFFICIAL; then
     LOG "\033[0;33m! Build is not official. Skipping\033[0m"
@@ -15,7 +15,7 @@ DECODE_APK "system" "system/priv-app/SecSettings/SecSettings.apk"
 
 LOG "- Patching /system/system/etc/security/otacerts.zip"
 EVAL "rm \"$WORK_DIR/system/system/etc/security/otacerts.zip\""
-EVAL "cd \"$SRC_DIR\"; zip -q \"$WORK_DIR/system/system/etc/security/otacerts.zip\" \"./security/artisanrom_ota.x509.pem\""
+EVAL "cd \"$SRC_DIR\"; zip -q \"$WORK_DIR/system/system/etc/security/otacerts.zip\" \"./security/creatorrom_ota.x509.pem\""
 
 # Dynamically patch SecSettings
 # - Add missing/non-xml files in place
@@ -44,4 +44,3 @@ while IFS= read -r f; do
         EVAL "sed -i \"$PATCH_INST $CONTENT\" \"$APKTOOL_DIR/system/priv-app/SecSettings/SecSettings.apk/$f\""
     fi
 done < <(find "$MODPATH/SecSettings.apk" -type f)
-

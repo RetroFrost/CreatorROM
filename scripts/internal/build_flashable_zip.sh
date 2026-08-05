@@ -21,17 +21,17 @@ $ROM_IS_OFFICIAL && ROM_STATUS="OFFICIAL"
 ZIP_FILE_SUFFIX="-sign.zip"
 $DEBUG && ! $ROM_IS_OFFICIAL && ZIP_FILE_SUFFIX=".zip"
 
-ZIP_FILE_NAME="ArtisanROM_${ROM_STATUS}_${ROM_VERSION}_$(date +%Y%m%d)_${TARGET_CODENAME}${ZIP_FILE_SUFFIX}"
+ZIP_FILE_NAME="CreatorROM_${ROM_STATUS}_${ROM_VERSION}_$(date +%Y%m%d)_${TARGET_CODENAME}${ZIP_FILE_SUFFIX}"
 while [ -f "$OUT_DIR/$ZIP_FILE_NAME" ]; do
     INCREMENTAL=$((INCREMENTAL + 1))
-    ZIP_FILE_NAME="ArtisanROM_${ROM_VERSION}_$(date +%Y%m%d)-${INCREMENTAL}_${TARGET_CODENAME}${ZIP_FILE_SUFFIX}"
+    ZIP_FILE_NAME="CreatorROM_${ROM_VERSION}_$(date +%Y%m%d)-${INCREMENTAL}_${TARGET_CODENAME}${ZIP_FILE_SUFFIX}"
 done
 
 PRIVATE_KEY_PATH="$SRC_DIR/security/"
 PUBLIC_KEY_PATH="$SRC_DIR/security/"
 if $ROM_IS_OFFICIAL; then
-    PRIVATE_KEY_PATH+="artisanrom_ota"
-    PUBLIC_KEY_PATH+="artisanrom_ota"
+    PRIVATE_KEY_PATH+="creatorrom_ota"
+    PUBLIC_KEY_PATH+="creatorrom_ota"
 else
     PRIVATE_KEY_PATH+="aosp_testkey"
     PUBLIC_KEY_PATH+="aosp_testkey"
@@ -246,6 +246,17 @@ GENERATE_OTA_METADATA()
     } > "$TMP_DIR/META-INF/com/android/metadata"
 }
 
+PRINT_BLOCK_DEVICE()
+{
+    local PARTITION="$1"
+
+    if $TARGET_USE_DYNAMIC_PARTITIONS; then
+        echo -n "map_partition(\"$PARTITION\")"
+    else
+        echo -n "\"$TARGET_OS_BOOT_DEVICE_PATH/$PARTITION\""
+    fi
+}
+
 GENERATE_UPDATER_SCRIPT()
 {
     local SCRIPT_FILE="$TMP_DIR/META-INF/com/google/android/updater-script"
@@ -256,6 +267,7 @@ GENERATE_UPDATER_SCRIPT()
     local HAS_UP_PARAM=false
     local HAS_LK3RD=false
     local HAS_BOOT=false
+    local HAS_DTB=false
     local HAS_DTBO=false
     local HAS_INIT_BOOT=false
     local HAS_VENDOR_BOOT=false
@@ -268,10 +280,13 @@ GENERATE_UPDATER_SCRIPT()
     local HAS_VENDOR_DLKM=false
     local HAS_ODM_DLKM=false
     local HAS_SYSTEM_DLKM=false
+    local HAS_PRISM=false
+    local HAS_OPTICS=false
 
     [ -f "$TMP_DIR/up_param.bin" ] && HAS_UP_PARAM=true
     [ -f "$TMP_DIR/lk3rd.img" ] && HAS_LK3RD=true
     [ -f "$TMP_DIR/boot.img" ] && HAS_BOOT=true
+    [ -f "$TMP_DIR/dtb.img" ] && HAS_DTB=true
     [ -f "$TMP_DIR/dtbo.img" ] && HAS_DTBO=true
     [ -f "$TMP_DIR/init_boot.img" ] && HAS_INIT_BOOT=true
     [ -f "$TMP_DIR/vendor_boot.img" ] && HAS_VENDOR_BOOT=true
@@ -284,6 +299,8 @@ GENERATE_UPDATER_SCRIPT()
     [ -f "$TMP_DIR/vendor_dlkm.new.dat${BROTLI_EXTENSION}" ] && HAS_VENDOR_DLKM=true && PARTITION_COUNT=$((PARTITION_COUNT + 1))
     [ -f "$TMP_DIR/odm_dlkm.new.dat${BROTLI_EXTENSION}" ] && HAS_ODM_DLKM=true && PARTITION_COUNT=$((PARTITION_COUNT + 1))
     [ -f "$TMP_DIR/system_dlkm.new.dat${BROTLI_EXTENSION}" ] && HAS_SYSTEM_DLKM=true && PARTITION_COUNT=$((PARTITION_COUNT + 1))
+    [ -f "$TMP_DIR/prism.new.dat${BROTLI_EXTENSION}" ] && HAS_PRISM=true && PARTITION_COUNT=$((PARTITION_COUNT + 1))
+    [ -f "$TMP_DIR/optics.new.dat${BROTLI_EXTENSION}" ] && HAS_OPTICS=true && PARTITION_COUNT=$((PARTITION_COUNT + 1))
 
     {
         if [ -n "$TARGET_ASSERT_MODEL" ]; then
@@ -310,23 +327,29 @@ GENERATE_UPDATER_SCRIPT()
 
         PRINT_HEADER
 
-        # https://android.googlesource.com/platform/build/+/refs/tags/android-15.0.0_r1/tools/releasetools/common.py#4007
-        echo -e "\n# --- Start patching dynamic partitions ---\n\n"
-        echo -e "# Update dynamic partition metadata\n"
-        echo -n 'assert(update_dynamic_partitions(package_extract_file("dynamic_partitions_op_list")'
-        if $HAS_SUPER_EMPTY; then
-            # https://github.com/LineageOS/android_build/commit/98549f6893c3a93057e2d4cdd1015a93e9473b16
-            # https://github.com/LineageOS/android_bootable_deprecated-ota/commit/e97be4333bd3824b8561c9637e9e6de28bc29da0
-            echo -n ', package_extract_file("unsparse_super_empty.img")'
+        if $TARGET_USE_DYNAMIC_PARTITIONS; then
+            # https://android.googlesource.com/platform/build/+/refs/tags/android-15.0.0_r1/tools/releasetools/common.py#4007
+            echo -e "\n# --- Start patching dynamic partitions ---\n\n"
+            echo -e "# Update dynamic partition metadata\n"
+            echo -n 'assert(update_dynamic_partitions(package_extract_file("dynamic_partitions_op_list")'
+            if $HAS_SUPER_EMPTY; then
+                # https://github.com/LineageOS/android_build/commit/98549f6893c3a93057e2d4cdd1015a93e9473b16
+                # https://github.com/LineageOS/android_bootable_deprecated-ota/commit/e97be4333bd3824b8561c9637e9e6de28bc29da0
+                echo -n ', package_extract_file("unsparse_super_empty.img")'
+            fi
+            echo    '));'
+        else
+            echo -e "\n# --- Start patching legacy partitions ---\n"
         fi
-        echo    '));'
         if $HAS_SYSTEM; then
             echo -e "\n# Patch partition system\n"
             echo    'ui_print("Patching system image unconditionally...");'
             echo -n 'show_progress(0.'
             echo -n "$(bc -l <<< "9 - $PARTITION_COUNT")"
             echo    '00000, 0);'
-            echo -n 'block_image_update(map_partition("system"), package_extract_file("system.transfer.list"), "'
+            echo -n 'block_image_update('
+            PRINT_BLOCK_DEVICE "system"
+            echo -n ', package_extract_file("system.transfer.list"), "'
             echo -n "system.new.dat${BROTLI_EXTENSION}"
             echo    '", "system.patch.dat") ||'
             echo    '  abort("E1001: Failed to update system image.");'
@@ -335,7 +358,9 @@ GENERATE_UPDATER_SCRIPT()
             echo -e "\n# Patch partition vendor\n"
             echo    'ui_print("Patching vendor image unconditionally...");'
             echo    'show_progress(0.100000, 0);'
-            echo -n 'block_image_update(map_partition("vendor"), package_extract_file("vendor.transfer.list"), "'
+            echo -n 'block_image_update('
+            PRINT_BLOCK_DEVICE "vendor"
+            echo -n ', package_extract_file("vendor.transfer.list"), "'
             echo -n "vendor.new.dat${BROTLI_EXTENSION}"
             echo    '", "vendor.patch.dat") ||'
             echo    '  abort("E2001: Failed to update vendor image.");'
@@ -344,7 +369,9 @@ GENERATE_UPDATER_SCRIPT()
             echo -e "\n# Patch partition product\n"
             echo    'ui_print("Patching product image unconditionally...");'
             echo    'show_progress(0.100000, 0);'
-            echo -n 'block_image_update(map_partition("product"), package_extract_file("product.transfer.list"), "'
+            echo -n 'block_image_update('
+            PRINT_BLOCK_DEVICE "product"
+            echo -n ', package_extract_file("product.transfer.list"), "'
             echo -n "product.new.dat${BROTLI_EXTENSION}"
             echo    '", "product.patch.dat") ||'
             echo    '  abort("E2001: Failed to update product image.");'
@@ -353,7 +380,9 @@ GENERATE_UPDATER_SCRIPT()
             echo -e "\n# Patch partition system_ext\n"
             echo    'ui_print("Patching system_ext image unconditionally...");'
             echo    'show_progress(0.100000, 0);'
-            echo -n 'block_image_update(map_partition("system_ext"), package_extract_file("system_ext.transfer.list"), "'
+            echo -n 'block_image_update('
+            PRINT_BLOCK_DEVICE "system_ext"
+            echo -n ', package_extract_file("system_ext.transfer.list"), "'
             echo -n "system_ext.new.dat${BROTLI_EXTENSION}"
             echo    '", "system_ext.patch.dat") ||'
             echo    '  abort("E2001: Failed to update system_ext image.");'
@@ -362,7 +391,9 @@ GENERATE_UPDATER_SCRIPT()
             echo -e "\n# Patch partition odm\n"
             echo    'ui_print("Patching odm image unconditionally...");'
             echo    'show_progress(0.100000, 0);'
-            echo -n 'block_image_update(map_partition("odm"), package_extract_file("odm.transfer.list"), "'
+            echo -n 'block_image_update('
+            PRINT_BLOCK_DEVICE "odm"
+            echo -n ', package_extract_file("odm.transfer.list"), "'
             echo -n "odm.new.dat${BROTLI_EXTENSION}"
             echo    '", "odm.patch.dat") ||'
             echo    '  abort("E2001: Failed to update odm image.");'
@@ -371,7 +402,9 @@ GENERATE_UPDATER_SCRIPT()
             echo -e "\n# Patch partition vendor_dlkm\n"
             echo    'ui_print("Patching vendor_dlkm image unconditionally...");'
             echo    'show_progress(0.100000, 0);'
-            echo -n 'block_image_update(map_partition("vendor_dlkm"), package_extract_file("vendor_dlkm.transfer.list"), "'
+            echo -n 'block_image_update('
+            PRINT_BLOCK_DEVICE "vendor_dlkm"
+            echo -n ', package_extract_file("vendor_dlkm.transfer.list"), "'
             echo -n "vendor_dlkm.new.dat${BROTLI_EXTENSION}"
             echo    '", "vendor_dlkm.patch.dat") ||'
             echo    '  abort("E2001: Failed to update vendor_dlkm image.");'
@@ -380,7 +413,9 @@ GENERATE_UPDATER_SCRIPT()
             echo -e "\n# Patch partition odm_dlkm\n"
             echo    'ui_print("Patching odm_dlkm image unconditionally...");'
             echo    'show_progress(0.100000, 0);'
-            echo -n 'block_image_update(map_partition("odm_dlkm"), package_extract_file("odm_dlkm.transfer.list"), "'
+            echo -n 'block_image_update('
+            PRINT_BLOCK_DEVICE "odm_dlkm"
+            echo -n ', package_extract_file("odm_dlkm.transfer.list"), "'
             echo -n "odm_dlkm.new.dat${BROTLI_EXTENSION}"
             echo    '", "odm_dlkm.patch.dat") ||'
             echo    '  abort("E2001: Failed to update odm_dlkm image.");'
@@ -389,17 +424,49 @@ GENERATE_UPDATER_SCRIPT()
             echo -e "\n# Patch partition system_dlkm\n"
             echo    'ui_print("Patching system_dlkm image unconditionally...");'
             echo    'show_progress(0.100000, 0);'
-            echo -n 'block_image_update(map_partition("system_dlkm"), package_extract_file("system_dlkm.transfer.list"), "'
+            echo -n 'block_image_update('
+            PRINT_BLOCK_DEVICE "system_dlkm"
+            echo -n ', package_extract_file("system_dlkm.transfer.list"), "'
             echo -n "system_dlkm.new.dat${BROTLI_EXTENSION}"
             echo    '", "system_dlkm.patch.dat") ||'
             echo    '  abort("E2001: Failed to update system_dlkm image.");'
         fi
-        echo -e "\n# --- End patching dynamic partitions ---\n"
+        if $HAS_PRISM; then
+            echo -e "\n# Patch partition prism\n"
+            echo    'ui_print("Patching prism image unconditionally...");'
+            echo -n 'block_image_update('
+            PRINT_BLOCK_DEVICE "prism"
+            echo -n ', package_extract_file("prism.transfer.list"), "'
+            echo -n "prism.new.dat${BROTLI_EXTENSION}"
+            echo    '", "prism.patch.dat") ||'
+            echo    '  abort("E2001: Failed to update prism image.");'
+        fi
+        if $HAS_OPTICS; then
+            echo -e "\n# Patch partition optics\n"
+            echo    'ui_print("Patching optics image unconditionally...");'
+            echo -n 'block_image_update('
+            PRINT_BLOCK_DEVICE "optics"
+            echo -n ', package_extract_file("optics.transfer.list"), "'
+            echo -n "optics.new.dat${BROTLI_EXTENSION}"
+            echo    '", "optics.patch.dat") ||'
+            echo    '  abort("E2001: Failed to update optics image.");'
+        fi
+        if $TARGET_USE_DYNAMIC_PARTITIONS; then
+            echo -e "\n# --- End patching dynamic partitions ---\n"
+        else
+            echo -e "\n# --- End patching legacy partitions ---\n"
+        fi
         if $HAS_DTBO; then
             echo    'ui_print("Full Patching dtbo.img img...");'
             echo -n 'package_extract_file("dtbo.img", "'
             echo -n "$TARGET_OS_BOOT_DEVICE_PATH"
             echo    '/dtbo");'
+        fi
+        if $HAS_DTB; then
+            echo    'ui_print("Full Patching dtb.img img...");'
+            echo -n 'package_extract_file("dtb.img", "'
+            echo -n "$TARGET_OS_BOOT_DEVICE_PATH"
+            echo    '/dtb");'
         fi
         if $HAS_INIT_BOOT; then
             echo    'ui_print("Full Patching init_boot.img img...");'
@@ -481,11 +548,11 @@ PRINT_HEADER()
     echo    'ui_print(" ");'
     echo    'ui_print("****************************************************");'
     echo -n 'ui_print("'
-    echo -n "Welcome to ArtisanROM $ROM_CODENAME $ROM_VERSION for $TARGET_NAME!"
+    echo -n "Welcome to CreatorROM $ROM_CODENAME $ROM_VERSION for $TARGET_NAME!"
     echo    '");'
-    echo    'ui_print("ArtisanROM developed by Android Artisan @XDAforums");'
+    echo    'ui_print("CreatorROM is based on ArtisanROM by Android Artisan");'
     echo    'ui_print("UN1CA build system coded by salvo_giangri @XDAforums");'
-    echo    'ui_print("Special thanks to all ArtisanROM Maintainers, Contribuitors and Testers");'
+    echo    'ui_print("Special thanks to the ArtisanROM and UN1CA contributors");'
     echo    'ui_print("****************************************************");'
     echo -n 'ui_print("'
     echo -n "One UI version: $ONEUI_VERSION"
@@ -548,11 +615,13 @@ while IFS= read -r f; do
 done < <(find "$WORK_DIR" -maxdepth 1 -type d)
 LOG_STEP_OUT
 
-LOG "- Building unsparse_super_empty.img"
-BUILD_SUPER_EMPTY
+if $TARGET_USE_DYNAMIC_PARTITIONS; then
+    LOG "- Building unsparse_super_empty.img"
+    BUILD_SUPER_EMPTY
 
-LOG "- Generating dynamic_partitions_op_list"
-GENERATE_OP_LIST
+    LOG "- Generating dynamic_partitions_op_list"
+    GENERATE_OP_LIST
+fi
 
 while IFS= read -r f; do
     PARTITION="$(basename "$f" | sed "s/.img//g")"

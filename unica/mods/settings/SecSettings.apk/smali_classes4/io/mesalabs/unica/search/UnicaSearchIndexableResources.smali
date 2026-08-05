@@ -51,9 +51,9 @@
 
     new-instance v0, Lcom/android/settingslib/search/SearchIndexableData;
 
-    const-class v1, Lio/mesalabs/unica/settings/about/AboutArtisanROMFragment;
+    const-class v1, Lio/mesalabs/unica/settings/about/AboutCreatorROMFragment;
 
-    sget-object v2, Lio/mesalabs/unica/settings/about/AboutArtisanROMFragment;->SEARCH_INDEX_DATA_PROVIDER:Lcom/android/settings/search/BaseSearchIndexProvider;
+    sget-object v2, Lio/mesalabs/unica/settings/about/AboutCreatorROMFragment;->SEARCH_INDEX_DATA_PROVIDER:Lcom/android/settings/search/BaseSearchIndexProvider;
 
     invoke-direct {v0, v1, v2}, Lcom/android/settingslib/search/SearchIndexableData;-><init>(Ljava/lang/Class;Lcom/android/settingslib/search/Indexable$SearchIndexProvider;)V
 

@@ -1,10 +1,10 @@
 out/
 
 # Cert
-security/artisanrom_ota.x509.pem
-security/artisanrom_ota.pk8
-security/artisanrom_platform.x509.pem
-security/artisanrom_platform.pk8
+security/creatorrom_ota.x509.pem
+security/creatorrom_ota.pk8
+security/creatorrom_platform.x509.pem
+security/creatorrom_platform.pk8
 
 # MacOS files
 *.DS_Store
