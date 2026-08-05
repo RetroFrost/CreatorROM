@@ -45,9 +45,11 @@ jobs:
           sudo install -m 0755 mkbootimg.py /usr/bin/mkbootimg
           sudo modprobe erofs || true
           sudo modprobe f2fs || true
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
