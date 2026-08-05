@@ -30,6 +30,16 @@ jobs:
           bash -n target/beyond2lte/config.sh
           bash -n target/beyond2lte/sff.sh
 
+      - name: Generate beyond2lte build configuration
+        run: |
+          mkdir -p out
+          SRC_DIR="$PWD" OUT_DIR="$PWD/out" bash scripts/internal/gen_config_file.sh beyond2lte
+          grep -q '^TARGET_CODENAME="beyond2lte"$' out/config.sh
+          grep -q '^TARGET_PLATFORM="exynos9820"$' out/config.sh
+          grep -q '^TARGET_SUPER_PARTITION_SIZE="0"$' out/config.sh
+          grep -q '^TARGET_OS_FILE_SYSTEM_TYPE="ext4"$' out/config.sh
+          grep -q '^TARGET_OS_SINGLE_SYSTEM_IMAGE="essi"$' out/config.sh
+
       - name: Validate migrated schema
         run: |
           grep -q '^TARGET_PLATFORM_SDK_VERSION=31$' target/beyond2lte/config.sh
