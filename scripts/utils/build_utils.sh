@@ -3,6 +3,7 @@
 
 # [
 source "$SRC_DIR/scripts/utils/common_utils.sh"
+[ -f "$SRC_DIR/scripts/utils/legacy_utils.sh" ] && source "$SRC_DIR/scripts/utils/legacy_utils.sh"
 # ]
 
 # GET_DISK_USAGE <file>

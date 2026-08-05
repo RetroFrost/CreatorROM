@@ -1,0 +1,48 @@
+name: Validate beyond2lte migration
+
+on:
+  pull_request:
+    paths:
+      - "platform/exynos9820/**"
+      - "target/beyond2lte/**"
+      - "scripts/**"
+      - "unica/configs/version.sh"
+      - ".github/workflows/validate-beyond2lte.yml"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check shell syntax
+        run: |
+          bash -n buildenv.sh
+          bash -n scripts/make_rom.sh
+          bash -n scripts/extract_fw.sh
+          bash -n scripts/internal/create_work_dir_legacy.sh
+          bash -n scripts/internal/build_flashable_zip_legacy.sh
+          bash -n scripts/internal/build_flashable_zip_legacy_base.sh
+          bash -n scripts/utils/build_utils.sh
+          bash -n scripts/utils/legacy_utils.sh
+          bash -n platform/exynos9820/config.sh
+          bash -n target/beyond2lte/config.sh
+          bash -n target/beyond2lte/sff.sh
+
+      - name: Validate migrated schema
+        run: |
+          grep -q '^TARGET_PLATFORM_SDK_VERSION=31$' target/beyond2lte/config.sh
+          grep -q '^TARGET_OS_SINGLE_SYSTEM_IMAGE="essi"$' platform/exynos9820/config.sh
+          grep -q '^TARGET_OS_FILE_SYSTEM_TYPE="ext4"$' platform/exynos9820/config.sh
+          grep -q '^TARGET_SUPER_PARTITION_SIZE=0$' platform/exynos9820/config.sh
+          grep -q '^TARGET_NONE_SIZE=0$' platform/exynos9820/config.sh
+          grep -q 'create_work_dir_legacy.sh' scripts/make_rom.sh
+          grep -q 'build_flashable_zip_legacy.sh' scripts/make_rom.sh
+          test -f platform/exynos9820/installer/recovery.fstab
+          test -f target/beyond2lte/postinstall.edify
+
+      - name: Ensure modern targets keep the modern path
+        run: |
+          grep -q 'create_work_dir.sh' scripts/make_rom.sh
+          grep -q 'build_flashable_zip.sh' scripts/make_rom.sh
