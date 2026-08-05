@@ -12,8 +12,6 @@ on:
           - release
         default: debug
   pull_request:
-    branches:
-      - 'sixteen'
   push:
     branches:
       - 'sixteen'
@@ -24,6 +22,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name != 'pull_request' || github.base_ref == 'sixteen'
     runs-on: ubuntu-24.04
 
     strategy:
