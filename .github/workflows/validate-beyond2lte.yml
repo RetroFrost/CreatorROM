@@ -1,0 +1,63 @@
+name: Validate beyond2lte port
+
+on:
+  push:
+    branches:
+      - creatorrom-4.0-beyond2lte
+  pull_request:
+    paths:
+      - 'platform/exynos9820/**'
+      - 'target/beyond2lte/**'
+      - 'unica/configs/**'
+      - 'scripts/**'
+      - '.github/workflows/validate-beyond2lte.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-config:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out the required source paths
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            buildenv.sh
+            scripts
+            security
+            unica/configs
+            platform/exynos9820
+            target/beyond2lte
+          sparse-checkout-cone-mode: false
+
+      - name: Check shell syntax
+        run: |
+          bash -n buildenv.sh
+          bash -n scripts/internal/gen_config_file.sh
+          bash -n platform/exynos9820/config.sh
+          bash -n target/beyond2lte/config.sh
+          bash -n target/beyond2lte/sff.sh
+
+      - name: Generate the UN1CA build configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          source buildenv.sh beyond2lte
+          test "$ROM_VERSION" = "4.0.0"
+          test "$TARGET_CODENAME" = "beyond2lte"
+          test "$TARGET_PLATFORM" = "exynos9820"
+          test "$TARGET_SUPER_PARTITION_SIZE" = "0"
+          test "$TARGET_SUPER_GROUP_NAME" = "none"
+          test "$TARGET_NONE_SIZE" = "0"
+          test "$TARGET_OS_BOOT_DEVICE_PATH" = "/dev/block/by-name"
+
+      - name: Verify required migration assets
+        run: |
+          test -d platform/exynos9820/patches
+          test -d target/beyond2lte/overlay
+          test -d target/beyond2lte/patches
+          test -f target/beyond2lte/postinstall.edify
