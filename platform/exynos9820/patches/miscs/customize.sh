@@ -124,6 +124,10 @@ data = path.read_bytes()
 patterns = (
     (bytes.fromhex("97753948050037360080"), bytes.fromhex("9775392a000014360080")),
     (bytes.fromhex("97773948050037360080"), bytes.fromhex("9777392a000014360080")),
+    (bytes.fromhex("3a009048050037330080"), bytes.fromhex("3a00902a000014330080")),
+    (bytes.fromhex("f6713948050037330080"), bytes.fromhex("f671392a000014330080")),
+    (bytes.fromhex("f6733948050037330080"), bytes.fromhex("f673392a000014330080")),
+    (bytes.fromhex("76743948050037330080"), bytes.fromhex("7674392a000014330080")),
 )
 
 for old, new in patterns:
