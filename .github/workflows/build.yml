@@ -12,6 +12,8 @@ on:
           - release
         default: debug
   pull_request:
+    branches:
+      - 'sixteen'
   push:
     branches:
       - 'sixteen'
