@@ -35,26 +35,26 @@ done
 
 # shellcheck disable=SC2046
 wait $(jobs -p) || exit 1
-
 LOG_STEP_OUT
 
 # The old Video SVC and HDR10+ byte patterns target an earlier libstagefright.
 # They are not present in the One UI 8 source firmware and are also disabled on
 # ArtisanROM's current Exynos 990 path, so do not apply stale binary patches.
 
+LOG_STEP_IN "- Adding S21 (p3sxxx) camera compatibility libraries"
 BLOBS_LIST="
 system/lib64/libeden_wrapper_system.so
 system/lib64/libsnap_aidl.snap.samsung.so
 "
 for blob in $BLOBS_LIST
 do
-    ADD_TO_WORK_DIR "r9sxxx" "system" "$blob" 0 0 644 "u:object_r:system_lib_file:s0"
+    ADD_TO_WORK_DIR "p3sxxx" "system" "$blob" 0 0 644 "u:object_r:system_lib_file:s0"
 done
 LOG_STEP_OUT
 
-LOG_STEP_IN "- Adding S21 FE (r9sxxx) SWISP models"
+LOG_STEP_IN "- Adding S21 (p3sxxx) SWISP models"
 DELETE_FROM_WORK_DIR "vendor" "saiv/swisp_1.0"
-ADD_TO_WORK_DIR "r9sxxx" "vendor" "saiv/swisp_1.0"
+ADD_TO_WORK_DIR "p3sxxx" "vendor" "saiv/swisp_1.0"
 
 BLOBS_LIST="
 system/lib64/libSwIsp_core.camera.samsung.so
@@ -62,15 +62,18 @@ system/lib64/libSwIsp_wrapper_v1.camera.samsung.so
 "
 for blob in $BLOBS_LIST
 do
-    ADD_TO_WORK_DIR "r9sxxx" "system" "$blob" 0 0 644 "u:object_r:system_lib_file:s0" &
+    ADD_TO_WORK_DIR "p3sxxx" "system" "$blob" 0 0 644 "u:object_r:system_lib_file:s0" &
 done
+
+# shellcheck disable=SC2046
+wait $(jobs -p) || exit 1
 LOG_STEP_OUT
 
-LOG_STEP_IN "- Adding A26 (a26xxx) Polarr SDK blobs"
-ADD_TO_WORK_DIR "a26xxx" "system" "system/etc/public.libraries-polarr.txt" 0 0 644 "u:object_r:system_file:s0"
-ADD_TO_WORK_DIR "a26xxx" "system" "system/lib64/libBestComposition.polarr.so" 0 0 644 "u:object_r:system_lib_file:s0"
-ADD_TO_WORK_DIR "a26xxx" "system" "system/lib64/libFeature.polarr.so" 0 0 644 "u:object_r:system_lib_file:s0"
-ADD_TO_WORK_DIR "a26xxx" "system" "system/lib64/libTracking.polarr.so" 0 0 644 "u:object_r:system_lib_file:s0"
+LOG_STEP_IN "- Adding A73 (a73xqxx) Polarr SDK blobs"
+ADD_TO_WORK_DIR "a73xqxx" "system" "system/etc/public.libraries-polarr.txt" 0 0 644 "u:object_r:system_file:s0"
+ADD_TO_WORK_DIR "a73xqxx" "system" "system/lib64/libBestComposition.polarr.so" 0 0 644 "u:object_r:system_lib_file:s0"
+ADD_TO_WORK_DIR "a73xqxx" "system" "system/lib64/libFeature.polarr.so" 0 0 644 "u:object_r:system_lib_file:s0"
+ADD_TO_WORK_DIR "a73xqxx" "system" "system/lib64/libTracking.polarr.so" 0 0 644 "u:object_r:system_lib_file:s0"
 LOG_STEP_OUT
 
 LOG_STEP_IN "- Cleaning SamsungCamera OAT"
@@ -91,21 +94,11 @@ sed -i \
     "$WORK_DIR/system/system/lib64/libPortraitSolution.camera.samsung.so"
 LOG_STEP_OUT
 
-LOG_STEP_IN "- Adding S21 FE (r9sxxx) SingleTake models"
+LOG_STEP_IN "- Adding S21 (p3sxxx) SingleTake models"
 DELETE_FROM_WORK_DIR "vendor" "etc/singletake"
-ADD_TO_WORK_DIR "r9sxxx" "vendor" "etc/singletake"
-
-BLOBS_LIST="
-system/priv-app/SingleTakeService/SingleTakeService.apk
-system/cameradata/singletake/service-feature.xml
-"
-for blob in $BLOBS_LIST
-do
-    ADD_TO_WORK_DIR "r9sxxx" "system" "$blob" 0 0 644 "u:object_r:system_file:s0" &
-done
-
-# shellcheck disable=SC2046
-wait $(jobs -p) || exit 1
+ADD_TO_WORK_DIR "p3sxxx" "vendor" "etc/singletake"
+ADD_TO_WORK_DIR "p3sxxx" "system" "system/cameradata/singletake/service-feature.xml" 0 0 644 "u:object_r:system_file:s0"
+LOG_STEP_OUT
 
 LOG "- Decompiling SamsungCamera" # To fool build system into recompiling + signing it at the end
 DECODE_APK "system" "system/priv-app/SamsungCamera/SamsungCamera.apk"
@@ -121,5 +114,3 @@ if [[ "$TARGET_CODENAME" == "beyondx" ]]; then
    cp -a "$MODPATH/assets/lottie_camera_punchcut_timer_bx.json" "$APKTOOL_DIR/system/priv-app/SamsungCamera/SamsungCamera.apk/res/raw/lottie_camera_punchcut_timer_b0.json"
    cp -a "$MODPATH/assets/face_unlocking_cutout_ic_bx.json" "$APKTOOL_DIR/system/priv-app/SamsungCamera/SamsungCamera.apk/res/raw/face_unlocking_cutout_ic_b0.json"
 fi
-
-LOG_STEP_OUT
