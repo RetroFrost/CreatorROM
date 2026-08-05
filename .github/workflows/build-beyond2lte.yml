@@ -96,11 +96,13 @@ jobs:
           ls -lh "${files[@]}"
           md5sum "${files[@]}"
 
-      - name: Upload build logs
+      - name: Upload CreatorROM output and logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: beyond2lte-build-logs
-          path: out/*.log
+          name: CreatorROM-4.0.0-beyond2lte-${{ github.run_attempt }}
+          path: |
+            out/CreatorROM_4.0.0_*_beyond2lte*.zip
+            out/*.log
           if-no-files-found: ignore
           retention-days: 7
