@@ -38,17 +38,9 @@ wait $(jobs -p) || exit 1
 
 LOG_STEP_OUT
 
-LOG_STEP_IN
-LOG "- Patching Video SVC Check"
-# Early jump after the log and abort functions when configureSVC fails
-# b LAB_001dd448 -> b LAB_001ddc24
-HEX_PATCH "$WORK_DIR/system/system/lib64/libstagefright.so" "da4a0594e0031a2a22feff17" "da4a0594e0031a2a19000014"
-
-LOG "- Patching HDR10+ Check"
-# Skip HDR10+ Recording ASSERT
-# cbz this,LAB_001dde38 -> nop
-HEX_PATCH "$WORK_DIR/system/system/lib64/libstagefright.so" "010140f90a4d0594604d0034" "010140f90a4d05941f2003d5"
-LOG_STEP_OUT
+# The old Video SVC and HDR10+ byte patterns target an earlier libstagefright.
+# They are not present in the One UI 8 source firmware and are also disabled on
+# ArtisanROM's current Exynos 990 path, so do not apply stale binary patches.
 
 BLOBS_LIST="
 system/lib64/libeden_wrapper_system.so
