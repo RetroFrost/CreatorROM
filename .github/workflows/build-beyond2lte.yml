@@ -1,3 +1,4 @@
+# This workflow also exists on the default branch so pull requests are tested before merge.
 name: Build beyond2lte
 
 on:
