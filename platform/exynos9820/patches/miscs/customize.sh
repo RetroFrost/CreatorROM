@@ -114,7 +114,26 @@ if [ ! -f "$WORK_DIR/system/system/lib64/libbluetooth_jni.so" ]; then
     LOG_STEP_OUT
 fi
 
-# https://github.com/duhansysl/Bluetooth-Library-Patcher/blob/67e598ad142ed296b487a7a4585927c993d4f35d/hexpatcher.sh#L43
-HEX_PATCH "$WORK_DIR/system/system/lib64/libbluetooth_jni.so" \
-    "289767394805003736008052" "289767392a00001436008052"
+LOG "- Patching Bluetooth JNI for One UI 8"
+python3 - "$WORK_DIR/system/system/lib64/libbluetooth_jni.so" <<'PY'
+from pathlib import Path
+import sys
 
+path = Path(sys.argv[1])
+data = path.read_bytes()
+patterns = (
+    (bytes.fromhex("97753948050037360080"), bytes.fromhex("9775392a000014360080")),
+    (bytes.fromhex("97773948050037360080"), bytes.fromhex("9777392a000014360080")),
+)
+
+for old, new in patterns:
+    if new in data:
+        print("  - Bluetooth JNI is already patched")
+        break
+    if old in data:
+        path.write_bytes(data.replace(old, new, 1))
+        print("  - Applied One UI 8 Bluetooth JNI patch")
+        break
+else:
+    print("  - No known One UI 8 Bluetooth JNI signature found; leaving library unchanged")
+PY
