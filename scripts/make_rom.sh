@@ -15,10 +15,27 @@ START_TIME="$(date +%s)"
 SOURCE_FIRMWARE_PATH="$(cut -d "/" -f 1 -s <<< "$SOURCE_FIRMWARE")_$(cut -d "/" -f 2 -s <<< "$SOURCE_FIRMWARE")"
 TARGET_FIRMWARE_PATH="$(cut -d "/" -f 1 -s <<< "$TARGET_FIRMWARE")_$(cut -d "/" -f 2 -s <<< "$TARGET_FIRMWARE")"
 
+USE_LEGACY_PARTITIONS=false
+if [[ "$TARGET_SUPER_PARTITION_SIZE" == "0" ]]; then
+    USE_LEGACY_PARTITIONS=true
+
+    # Compatibility names consumed by the proven ArtisanROM 3.1.1
+    # non-super work-dir and flashable-zip code.
+    export TARGET_HAS_SYSTEM_EXT="$TARGET_OS_BUILD_SYSTEM_EXT_PARTITION"
+    export TARGET_OS_FILE_SYSTEM="$TARGET_OS_FILE_SYSTEM_TYPE"
+    export TARGET_BOOT_DEVICE_PATH="$TARGET_OS_BOOT_DEVICE_PATH"
+    export TARGET_SUPER_GROUP_SIZE="${TARGET_NONE_SIZE:-0}"
+    export TARGET_REQUIRES_SPECIFIC_FIRMWARE=false
+    export TARGET_SUPPORTED_FIRMWARES=none
+    export KERNEL_TMP_DIR="$OUT_DIR/kernel_tmp"
+fi
+
 GET_WORK_DIR_HASH()
 {
-    find "$SRC_DIR/unica" "$SRC_DIR/target/$TARGET_CODENAME" -type f -print0 | \
-        sort -z | xargs -0 sha1sum | sha1sum | cut -d " " -f 1
+    local PATHS=("$SRC_DIR/unica" "$SRC_DIR/target/$TARGET_CODENAME")
+    [ -d "$SRC_DIR/platform/$TARGET_PLATFORM" ] && PATHS+=("$SRC_DIR/platform/$TARGET_PLATFORM")
+
+    find "${PATHS[@]}" -type f -print0 | sort -z | xargs -0 sha1sum | sha1sum | cut -d " " -f 1
 }
 
 PREPARE_SCRIPT()
@@ -105,7 +122,11 @@ if $BUILD_ROM; then
     fi
 
     LOG_STEP_IN true "Creating work dir"
-    "$SRC_DIR/scripts/internal/create_work_dir.sh" || exit 1
+    if $USE_LEGACY_PARTITIONS; then
+        "$SRC_DIR/scripts/internal/create_work_dir_legacy.sh" || exit 1
+    else
+        "$SRC_DIR/scripts/internal/create_work_dir.sh" || exit 1
+    fi
     LOG_STEP_OUT
 
     if [ -d "$SRC_DIR/platform/$TARGET_PLATFORM/patches" ]; then
@@ -154,7 +175,11 @@ fi
 
 if $BUILD_ZIP; then
     LOG_STEP_IN true "Creating zip"
-    "$SRC_DIR/scripts/internal/build_flashable_zip.sh" || exit 1
+    if $USE_LEGACY_PARTITIONS; then
+        "$SRC_DIR/scripts/internal/build_flashable_zip_legacy.sh" || exit 1
+    else
+        "$SRC_DIR/scripts/internal/build_flashable_zip.sh" || exit 1
+    fi
     LOG_STEP_OUT
 fi
 

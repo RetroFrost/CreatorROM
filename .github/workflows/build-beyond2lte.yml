@@ -1,0 +1,108 @@
+# This workflow also exists on the default branch so pull requests are tested before merge.
+name: Build beyond2lte
+
+on:
+  pull_request:
+    paths:
+      - "platform/exynos9820/**"
+      - "target/beyond2lte/**"
+      - "scripts/**"
+      - "unica/**"
+      - ".github/workflows/build-beyond2lte.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: build-beyond2lte-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          sudo docker builder prune -a
+
+      - name: Set up build environment
+        run: |
+          sudo apt-get update
+          DEBIAN_FRONTEND=noninteractive sudo apt-get install -yq \
+            7zip attr ccache clang ffmpeg \
+            libbrotli-dev libgtest-dev libprotobuf-dev libunwind-dev libpcre2-dev \
+            libzstd-dev linux-modules-extra-$(uname -r) lld protobuf-compiler webp \
+            build-essential g++-aarch64-linux-gnu gcc-aarch64-linux-gnu \
+            python-is-python3 python3 wget
+          wget -q https://raw.githubusercontent.com/kdrag0n/kramflash/refs/heads/master/mkbootimg.py
+          sudo install -m 0755 mkbootimg.py /usr/bin/mkbootimg
+          sudo modprobe erofs || true
+          sudo modprobe f2fs || true
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Build dependencies
+        run: |
+          source ./buildenv.sh beyond2lte
+          ./scripts/build_dependencies.sh
+
+      - name: Download stock firmwares
+        run: |
+          source ./buildenv.sh beyond2lte
+          ./scripts/download_fw.sh
+
+      - name: Extract stock firmwares
+        run: |
+          source ./buildenv.sh beyond2lte
+          ./scripts/extract_fw.sh
+
+      - name: Add swapspace
+        uses: thejerrybao/setup-swap-space@v1
+        with:
+          swap-space-path: /swapfile
+          swap-size-gb: 12
+          remove-existing-swap-files: true
+
+      - name: Build CreatorROM
+        shell: bash
+        run: |
+          set -o pipefail
+          source ./buildenv.sh beyond2lte
+          mkdir -p out
+          ./scripts/make_rom.sh --debug 2>&1 | tee out/make_rom.log
+
+      - name: Verify output
+        run: |
+          shopt -s nullglob
+          files=(out/CreatorROM_4.0.0_*_beyond2lte*.zip)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "CreatorROM beyond2lte ZIP was not generated"
+            exit 1
+          fi
+          ls -lh "${files[@]}"
+          md5sum "${files[@]}"
+
+      - name: Upload CreatorROM output and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CreatorROM-4.0.0-beyond2lte-${{ github.run_attempt }}
+          path: |
+            out/CreatorROM_4.0.0_*_beyond2lte*.zip
+            out/*.log
+          if-no-files-found: ignore
+          retention-days: 7
