@@ -1,0 +1,81 @@
+name: Validate One UI 9 beyond2lte
+
+on:
+  push:
+    branches:
+      - oneui9-beyond2lte
+  pull_request:
+    paths:
+      - 'AGENTS.md'
+      - 'platform/exynos9820/**'
+      - 'target/beyond2lte/**'
+      - 'unica/**'
+      - 'scripts/**'
+      - 'buildenv.sh'
+      - '.github/workflows/validate-oneui9-beyond2lte.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-config:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Check shell syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n buildenv.sh
+          bash -n target/beyond2lte/config.sh
+          bash -n target/beyond2lte/sff.sh
+          bash -n platform/exynos9820/config.sh
+
+          while IFS= read -r -d '' file; do
+            bash -n "$file"
+          done < <(find scripts target/beyond2lte platform/exynos9820 -type f -name '*.sh' -print0)
+
+      - name: Generate and validate target configuration
+        shell: bash
+        run: |
+          set -eo pipefail
+          source ./buildenv.sh beyond2lte
+          set -u
+
+          test "$TARGET_CODENAME" = "beyond2lte"
+          test "$TARGET_PLATFORM" = "exynos9820"
+          test "$TARGET_SUPER_PARTITION_SIZE" = "0"
+          test "$TARGET_SUPER_GROUP_NAME" = "none"
+          test "$TARGET_PRODUCT_FIRST_API_LEVEL" = "28"
+
+      - name: Verify required target assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d platform/exynos9820/patches
+          test -d target/beyond2lte/overlay
+          test -d target/beyond2lte/patches
+          test -f target/beyond2lte/postinstall.edify
+          test -f AGENTS.md
+
+      - name: Guard against dangerous donor packaging
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # These checks intentionally focus on newly introduced obvious donor
+          # packaging paths. Target-side installer logic may legitimately refer
+          # to boot/dtbo/vbmeta, so do not ban those words globally.
+          if grep -RInE --exclude='AGENTS.md' --exclude='*.md' \
+            '(donor|source).*(EFS|efs|modem|CP\.tar|BL\.tar)' \
+            target/beyond2lte platform/exynos9820 scripts 2>/dev/null; then
+            echo 'Potential donor bootloader/modem/EFS packaging reference found.'
+            exit 1
+          fi
