@@ -1,0 +1,120 @@
+name: Build One UI 9 beyond2lte
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: build-oneui9-beyond2lte-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          sudo docker builder prune -a
+
+      - name: Set up build environment
+        run: |
+          sudo apt-get update
+          DEBIAN_FRONTEND=noninteractive sudo apt-get install -yq \
+            7zip attr ccache clang ffmpeg \
+            libbrotli-dev libgtest-dev libprotobuf-dev libunwind-dev libpcre2-dev \
+            libzstd-dev linux-modules-extra-$(uname -r) lld protobuf-compiler webp \
+            build-essential g++-aarch64-linux-gnu gcc-aarch64-linux-gnu \
+            python-is-python3 python3 wget
+          wget -q https://raw.githubusercontent.com/kdrag0n/kramflash/refs/heads/master/mkbootimg.py
+          sudo install -m 0755 mkbootimg.py /usr/bin/mkbootimg
+          sudo modprobe erofs || true
+          sudo modprobe f2fs || true
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Validate target before full build
+        shell: bash
+        run: |
+          set -eo pipefail
+          bash -n buildenv.sh
+          bash -n target/beyond2lte/config.sh
+          bash -n target/beyond2lte/sff.sh
+          source ./buildenv.sh beyond2lte
+          test "$TARGET_CODENAME" = "beyond2lte"
+          test "$TARGET_PLATFORM" = "exynos9820"
+
+      - name: Build dependencies
+        run: |
+          source ./buildenv.sh beyond2lte
+          ./scripts/build_dependencies.sh
+
+      - name: Download stock and donor firmwares
+        run: |
+          source ./buildenv.sh beyond2lte
+          ./scripts/download_fw.sh
+
+      - name: Extract firmwares
+        run: |
+          source ./buildenv.sh beyond2lte
+          ./scripts/extract_fw.sh
+
+      - name: Add swapspace
+        uses: thejerrybao/setup-swap-space@v1
+        with:
+          swap-space-path: /swapfile
+          swap-size-gb: 12
+          remove-existing-swap-files: true
+
+      - name: Build CreatorROM debug package
+        run: |
+          source ./buildenv.sh beyond2lte
+          ./scripts/make_rom.sh --debug
+
+      - name: Verify output
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(out/*beyond2lte*.zip)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo 'No beyond2lte ZIP was generated.'
+            exit 1
+          fi
+          ls -lh "${files[@]}"
+          sha256sum "${files[@]}"
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oneui9-beyond2lte-build-logs
+          path: |
+            out/*.log
+            out/**/*.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload debug ROM
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oneui9-beyond2lte-debug-rom
+          path: out/*beyond2lte*.zip
+          if-no-files-found: error
+          retention-days: 7
